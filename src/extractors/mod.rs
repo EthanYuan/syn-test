@@ -1,3 +1,4 @@
+pub mod clap_extractor;
 pub mod log_extractor;
 pub mod std_output_extractor;
 pub mod thiserror_extractor;
