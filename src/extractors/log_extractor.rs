@@ -1,3 +1,4 @@
+use super::extract_contents_in_brackets;
 use syn::Macro;
 
 pub struct LogExtractor;
@@ -12,15 +13,11 @@ impl syn::visit::Visit<'_> for LogExtractor {
                 || ident == "debug"
                 || ident == "trace"
             {
-                // Parses the contents of the println!
-                let macro_tokens = node.tokens.to_string();
+                let lit = node.tokens.to_string();
 
-                // Extract the contents of the curly brackets
-                if let Some(start) = macro_tokens.find('"') {
-                    if let Some(end) = macro_tokens.rfind('"') {
-                        let format_string = &macro_tokens[start + 1..end];
-                        println!("Found format string: {}", format_string);
-                    }
+                let format_string = extract_contents_in_brackets(lit);
+                if let Some(format_string) = format_string {
+                    println!("Found format string: {}", format_string);
                 }
             }
         }
