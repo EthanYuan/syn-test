@@ -5,7 +5,11 @@ use extractors::{
     std_output_extractor::StdOutputExtractor, thiserror_extractor::ThiserrorExtractor,
 };
 
-use syn::{parse_file, visit::visit_file};
+use syn::visit_mut::{self, VisitMut};
+use syn::{
+    parse_file, parse_quote, visit::visit_file, visit_mut::visit_file_mut, Expr, Lit, LitInt,
+};
+use quote::quote;
 
 fn main() {
     // println/eprintln
@@ -83,4 +87,38 @@ fn main() {
     visit_file(&mut log_extractor, &syntax_tree_log);
     visit_file(&mut thiserror_extractor, &syntax_tree_thiserror);
     visit_file(&mut clap_extractor, &syntax_tree_clap);
+
+    // visit mut
+    let code = r#"
+        fn main() {
+            let _ = 999u256;
+        }
+    "#;
+
+    let mut replace_extractor = BigintReplace;
+
+    let mut syntax_tree_code = parse_file(code).unwrap();
+    visit_file_mut(&mut replace_extractor, &mut syntax_tree_code);
+    println!("{}", quote!(#syntax_tree_code));
+
+}
+
+struct BigintReplace;
+
+impl VisitMut for BigintReplace {
+    fn visit_expr_mut(&mut self, node: &mut Expr) {
+        if let Expr::Lit(expr) = &node {
+            if let Lit::Int(int) = &expr.lit {
+                if int.suffix() == "u256" {
+                    let digits = int.base10_digits();
+                    let unsuffixed: LitInt = syn::parse_str(digits).unwrap();
+                    *node = parse_quote!(bigint::u256!(#unsuffixed));
+                    return;
+                }
+            }
+        }
+
+        // Delegate to the default impl to visit nested expressions.
+        visit_mut::visit_expr_mut(self, node);
+    }
 }
